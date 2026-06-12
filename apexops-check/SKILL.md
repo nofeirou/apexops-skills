@@ -1,7 +1,7 @@
 ---
 name: apexops-check
 description: ApexOps 只读采集与诊断。当用户需要巡检设备、检查健康状态、诊断异常、分析运行数据、生成巡检报告时触发。调用 ApexOps API 全量采集 24 类资产运行指标，AI 解读数据并生成结构化报告。触发关键词：巡检、检查、健康、状态、报告、诊断、分析、排查、inspect。
-version: 1.0.6
+version: 1.0.7
 user-invocable: true
 metadata: {"openclaw": {"requires": {"env": ["APEXOPS_URL", "APEXOPS_TOKEN"]}, "primaryEnv": "APEXOPS_TOKEN", "emoji": "🔍", "os": ["darwin", "linux"]}}
 ---
@@ -29,15 +29,16 @@ metadata: {"openclaw": {"requires": {"env": ["APEXOPS_URL", "APEXOPS_TOKEN"]}, "
 APEXOPS_URL="${APEXOPS_URL}"
 APEXOPS_TOKEN="${APEXOPS_TOKEN}"
 
-# 列出所有资产
+# 列出所有资产（分页，默认 limit=50）
 curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" "$APEXOPS_URL/api/assets"
-# → [{"id":1,"name":"web-01","host":"10.0.0.1","system_version":"linux","protocol":"ssh","group":"生产","enabled":true,...},...]
+# → {"assets":[{"id":1,"name":"web-01",...},...], "total":29, "limit":50, "offset":0}
+# 数据在 .assets 数组中，总数在 .total
 
 # 按组过滤
 curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" "$APEXOPS_URL/api/assets?group=生产"
 
-# 按类型过滤
-curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" "$APEXOPS_URL/api/assets?system_version=linux"
+# 按类型过滤 + 分页
+curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" "$APEXOPS_URL/api/assets?system_version=linux&limit=200"
 
 # 查看资产类型列表
 curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" "$APEXOPS_URL/api/asset-types"
@@ -102,6 +103,8 @@ curl -sk -H "Authorization: Bearer $APEXOPS_TOKEN" \
 ```
 
 **超时说明**：WinRM/SSH 等慢协议采集耗时较长（每资产 30-120s），异步模式下 ApexOps 无请求超时限制，Agent 只需持续轮询即可。切勿在 POST 上设置短超时（如 curl 默认 30s），也不要因单次轮询返回 running 就认为失败。
+
+v2606.117+ WinRM 有 130s socket 级硬超时，超时后该资产会标记为 `timeout` 并计入 error_count 继续后续资产。
 
 **「全面」≠「全量」**：「全面巡检 VMware」意思是深度巡检 VMware，不是巡检所有设备。
 
